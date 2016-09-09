@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title></title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.23.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.23.0/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+
+<style>
+.marker {
+    display: block;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+}
+</style>
+
+<div id='map'></div>
+
+<script>
+const requestIGFeed = function(callback) {
+  const token = "PUT YOUR TOKEN HERE";
+  const url = "https://api.instagram.com/v1/users/self/media/recent/?access_token=" + token;
+  var xmlHttp = new XMLHttpRequest();
+  xmlHttp.onreadystatechange = function() { 
+    if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+      callback(JSON.parse(xmlHttp.responseText));
+  }
+  xmlHttp.open("GET", url, true);
+  xmlHttp.send(null);
+}
+const renderMap = function(response) {
+  mapboxgl.accessToken = 'pk.eyJ1IjoidGFybmdlcmluZSIsImEiOiJjaXN2MGZpbmQwaGVyMnp0a3FpNnptbmhmIn0.nPFAkG-REk-8F0fYmxLFdQ';
+  var geojson = {
+      "type": "FeatureCollection",
+      "features": []
+  };
+
+  const items = response.data;
+
+  items.forEach(function(item) {
+    if (!item.hasOwnProperty("location")) {
+      return
+    }
+    if (item.location && item.location.hasOwnProperty("latitude")) {
+      geojson.features.push({
+        "type": "Feature",
+        "properties": {
+          "message": item.caption.text,
+          "imageURI": item.images.thumbnail.url,
+          "iconSize": [60, 60]
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            item.location.longitude,
+            item.location.latitude
+          ]
+        }
+      })
+    }
+  }); 
+
+  console.log(geojson.features.length)
+
+  var map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v9',
+      center: geojson.features[0].geometry.coordinates,
+      zoom: 5
+  });
+
+  // add markers to map
+  geojson.features.forEach(function(marker) {
+      // create a DOM element for the marker
+      var el = document.createElement('div');
+      el.className = 'marker';
+      el.style.backgroundImage = 'url(' + marker.properties.imageURI + ')';
+      el.style.width = marker.properties.iconSize[0] + 'px';
+      el.style.height = marker.properties.iconSize[1] + 'px';
+      el.style.backgroundSize = "100%"
+
+      el.addEventListener('click', function() {
+          window.alert(marker.properties.message);
+      });
+
+      // add marker to map
+      new mapboxgl.Marker(el, {offset: [-marker.properties.iconSize[0] / 2, -marker.properties.iconSize[1] / 2]})
+          .setLngLat(marker.geometry.coordinates)
+          .addTo(map);
+  });
+}
+requestIGFeed(renderMap);
+</script>
+
+</body>
+</html>
